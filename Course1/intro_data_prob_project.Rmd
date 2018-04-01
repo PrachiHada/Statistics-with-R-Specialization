@@ -1,0 +1,148 @@
+---
+title: "Exploring the BRFSS data"
+output:
+  html_document:
+    fig_height: 4
+    highlight: pygments
+    theme: spacelab
+  pdf_document: default
+---
+
+## Setup
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Load packages
+
+```{r load-packages, message = FALSE}
+library(ggplot2)
+library(dplyr)
+library(stringr)
+```
+
+### Load data
+
+```{r load-data}
+load("brfss2013.RData")
+```
+
+
+* * *
+
+## Part 1: Data
+
+As mentioned on the website "BRFSS collects data in all 50 states as well as the District of Columbia and three U.S. territories. BRFSS completes more than 400,000 adult interviews each year, making it the largest continuously conducted health survey system in the world (https://www.cdc.gov/brfss/about/brfss_faq.htm)."
+
+It is also mentioned that "The survey is conducted using Random Digit Dialing (RDD) techniques on both landlines and cell phones (https://www.cdc.gov/brfss/about/brfss_faq.htm)." and that the "Home telephone numbers are obtained through random-digit dialing."
+
+"Random digit dialing (RDD) is a method for selecting people for involvement in telephone statistical surveys by generating telephone numbers at random (Wikipedia)."
+
+Since, BRFS collects data in all 50 states of USA and it uses RDD technique to select adults to participate in survey, so random sampling has been employed. Since random sampling has been employed in data collection, the results should be generalizable to the target population.
+
+There is no mention/suggestion or any related information provided on the website that random assignment has been employed in the study design. Therefore, the result does not suggest casuality.
+
+
+
+* * *
+
+## Part 2: Research questions
+
+**Research quesion 1:**
+To understand if there is a correlation between general health (genhlth) and how many times in a week peron exercises (walks, runs, jogs, or swims) (exeroft1) based on gender (sex). 
+
+In my opinion, people who exercise would have good general health but it would be good to see whether my assumption holds true or not after analysis.
+
+**Research quesion 2:**
+To find relation between level of satisfaction(lsatisfy), employment status (employ1), and income level (income2).
+
+I would like to know whether it is just income level or just employment status which contributes to satisfaction level or is it dependent on both factors.
+
+**Research quesion 3:**
+To understand sleeping pattern(sleptim1) among males and females(sex) based on their maritial status(marital).
+
+Studying sleeping patterns among males and females is interesting topic and viewing it along with marital status might provide better insights.
+
+* * *
+
+## Part 3: Exploratory data analysis
+
+**Research quesion 1:**
+To understand if there is a correlation between general health (genhlth) and how many times in a week(exeroft1 < 200) peron exercises (walks, runs, jogs, or swims) (exeroft1) based on gender (sex). 
+
+```{r}
+df1 <- select(brfss2013, genhlth, exeroft1, sex) %>%
+  filter(genhlth != "NA") %>%
+  filter(exeroft1 != "NA") %>%
+  filter(exeroft1 < 200) %>%
+  filter(sex != "NA")
+
+summary(df1)
+
+
+g1 <- ggplot(df1, aes( genhlth, exeroft1))
+g1 + geom_boxplot()  + facet_grid(. ~ sex) + xlab("genhlth = general health") + 
+  ylab ("exeroft1 = how many times walking, running, jogging, or swimming") + theme_bw()
+
+```
+
+Analysis:
+
+1) There are males who think that their health is excellent without any excercise but the same is not true for females.
+
+2) Females with excellent general heath have a right skewed curve with a long tail.
+
+3) The general heath of people s not dependent on how much they exerise.
+
+**Research quesion 2:**
+To find relation between level of satisfaction(lsatisfy), employment status (employ1), and income level (income2).
+
+```{r}
+df2 <- select(brfss2013, employ1, lsatisfy, income2) %>%
+  filter(employ1 != "NA") %>%
+  filter(lsatisfy != "NA") %>% filter(income2 != "NA")
+summary(df2)
+df2$EmploymentStatus <- str_wrap(df2$employ1, width = 9)
+ggplot(df2, aes(x = EmploymentStatus, y = income2, group = lsatisfy, fill = lsatisfy)) + geom_bar(position="dodge",stat="identity") 
+
+```
+
+Analysis:
+
+1) Students with income level $10,000 are very dissatisfied where as in other categories - threshold of income for satisfactio level "very dissatified" is higher. Thus we see that students have lower income needs than other categories.
+
+2) Income level is not  factor for satisfaction or dissatisfaction among people who are employed for wages and those who are retired
+
+3) No homemaker reported to be very dissatisfied.
+
+4) Dissatifaction among employed for wages and retired people is similar.
+
+5) Income level can be seen as a factor contributing to "very dissatisfied" among students, people who are our of work or uable to work, and self-employed imdividuals.
+
+**Research quesion 3:**
+To understand sleeping pattern(sleptim1) among males and females(sex) based on their maritial status(marital).
+
+```{r}
+df3 <- select(brfss2013, sleptim1, marital, sex) %>%
+  filter(sleptim1 != "NA") %>% filter(marital != "NA") %>% 
+  filter(sex != "NA")
+
+summary(df3)
+
+g3 <- ggplot(df3, aes(sex, sleptim1))
+g3 + geom_point(shape = 19, alpha = 1/2,aes(colour = sex)) + facet_grid(.~marital) + theme_bw()
+```
+
+Analysis:
+
+1) Married, divorced and never married males and females show similar sleeping pattern
+
+2) Separated females sleep more than separated males.
+
+3) Female who is member of unmarried couple sleep more than a male who is member of unmarried couple.
+
+4) In general, females sleep more or as much as males.
+
+5) People with never married marital status tend to sleep more.
+
+6) People with marital status member of unmarried couple tend to lesser than other merital status.
