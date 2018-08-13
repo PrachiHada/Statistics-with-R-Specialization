@@ -1,0 +1,242 @@
+---
+title: "Statistical inference with the GSS data"
+output: 
+  html_document: 
+    fig_height: 4
+    highlight: pygments
+    theme: spacelab
+---
+
+## Setup
+
+### Load packages
+
+```{r load-packages, message = FALSE}
+library(ggplot2)
+library(dplyr)
+library(statsr)
+```
+
+### Load data
+
+```{r load-data}
+load("gss.Rdata")
+```
+
+
+
+* * *
+
+## Part 1: Data
+
+**Background about GSS and how data is collected**
+
+Following information present on the website - http://www.gss.norc.org/for-survey-participants :
+"The General Social Survey (GSS) is a continuing study of American public opinion and values that began in 1972.
+For 75 years NORC has led independent research in a range of areas critical to public policy and public interest. Among this research, NORC has conducted the GSS for 44 years, making it one of the top social science research studies in America"
+
+The same page also describes how participants are selected. The following methodology is followed:
+
+- Your address was selected in order to represent a cross-section of the country. You are the voice for 50,000 households like you!
+- The random selection of households from across the United States ensures that the results of the survey are scientifically valid.
+- All households from across the country had an equal chance of being selected for this survey.
+- We will randomly select an adult member of your household to complete the interview.
+- Your opinions cannot be replaced by anyone else.
+
+**Generalizability**
+
+Based on above information, we can say that random sampling has been employed in data collection. Therefore, the results should be generalizable to the target population. 
+
+**Causality**
+
+There is no mention/suggestion or any related information provided on the website that random assignment has been employed in the study design. Therefore, the result does not suggest casuality.
+
+* * *
+
+## Part 2: Research question
+**I would explore if there is relation between being a US citzen (uscitzn) and current income (conic).**
+
+Response variable: conic
+
+Explanatory variable: uscitzn
+
+This is interesting to me because there has been a lot of news about immigration and making stringent work laws for immigrants. Therefore, I would like to explore and see if there is any difference in income of a US citizen and a Non-US citizen. 
+
+* * *
+
+## Part 3: Exploratory data analysis
+
+We first need to evaluate the distribution of US citizen in the US population.
+
+```{r}
+#Summary of us citizen
+summary(gss$uscitzn)
+
+```
+
+We see that there are 5 categories and maximum people have not reported their citizenship.
+For the purpose of study we will focus only into 2 groups from uscitzn variable: 
+
+1) A U.S. Citizen
+
+2) Not A U.S. Citizen
+
+So, we will create a subset of data for our analysis. I have selected just the required columns from the dataset which is uscitizn and coninc.
+
+**Summary of our Sample Data**
+```{r}
+
+samp <- subset(gss, (uscitzn == "A U.S. Citizen" | uscitzn == "Not A U.S. Citizen"), select = c( uscitzn, coninc))
+samp <- droplevels(samp)
+summary(samp)
+
+```
+We have dropped factor levels in uscitizn variable and now summary shows that there are only 2 variables in our dataset which are - uscitzn and coninc.
+We see that coninc has NA values. For the purpose of study we will not include following NA's so that we have idea about correct reported mean for each category. So we will create a subset of data for our analysis:
+
+```{r}
+samp <- samp %>%
+  filter(coninc != "NA")
+summary(samp$coninc)
+```
+
+The output does not have NA and our data is cleansed. 
+
+**Density distribution of current income**
+
+```{r}
+g <- ggplot(samp, aes(coninc))
+g + geom_density() + labs(title = "Distribution of income in 2012") + labs(x = "Total income", y = "Density")
+```
+
+The median income is $30113, with a mean of $46926, and range of $402 - $178712. Income distribution is bimodal and right skewed, with a peak at approximately $22,000.
+
+**Boxplot of current income**
+```{r}
+# boxplot of income vs citizen
+
+ggplot(samp, aes(factor(samp$uscitzn), samp$coninc, fill = uscitzn, alpha = 0.8)) + 
+  geom_boxplot() +
+  ggtitle('Total income by Citizenship') +
+  xlab('Citizenshio') + ylab('Current income') +
+  scale_fill_brewer(name = "Citizenship level")
+
+```
+
+The box plots suggest that median income of US citizen is more than Non-US citizen. However, whether this difference is statistically significan can only be confirmed via hypothesis.There are also a few outliners in both the categories.
+
+* * *
+
+## Part 4: Inference
+
+**State hypotheses**
+
+H0: mu_income_us_citizen = mu_income_us_citizen 
+
+Null hypothesis (H0) states that there is nothing going, that is, there is no difference in income of US citizen and non US citizen.
+
+HA: mu_income_us_citizen != mu_income_us_citizen
+
+That is, there is difference in income of US citizen and non US citizen.
+
+Since we are looking for difference. We will use two-sided null hypothesis.
+
+
+**Check conditions**
+
+```{r}
+#Condition1: Independence
+summary(samp)
+
+```
+Independence Codition:
+
+
+Within Groups: 
+
+We have read that sampling was done randomly and  n1 (No of US citizen) = 315 which is less than 10% of US citizens. 
+Similarly, n2 (No. of Non-US citizen residing in US) = 329 which is less than 10% of the population of non-US citizens residing in US. 
+Therefore, independence condition is met.
+
+Between Groups: 
+
+The groups are independent of each other
+
+Therefore, Independence condition is met.
+
+Sample Size/Skew Condition:
+
+This condition states that the more skew in the population distribution, the higher sample size is needed.
+
+Therefore, we will check sample size for both categories:
+
+```{r}
+#To check Sample Size/Skew condition for uscitzn == "A U.S. Citizen"
+n1 <- samp %>%
+  filter(uscitzn == "A U.S. Citizen")
+
+
+ggplot(data = n1, aes(x = coninc)) +
+  geom_histogram()
+
+```
+
+There is skew in the population distribution. Therefore, higher sample size is needed.
+If we increase the sample by simulation then data becomes more normal.
+
+
+```{r}
+#to view how increase in sample impacts the distribution for category "A U.S. Citizen"
+n1_sim <- n1 %>%
+  rep_sample_n(size = 250, reps = 500, replace = TRUE) %>%
+                    summarise(x_bar = mean(coninc))
+
+ggplot(data = n1_sim, aes(x = x_bar)) +
+  geom_histogram()
+```
+The distribution is nearly normal with large sample and simulation.
+
+
+Checking Condition for second category: 
+```{r}
+#To check Sample Size/Skew condition for uscitzn == "Not A U.S. Citizen"
+n2 <- samp %>%
+  filter(uscitzn == "Not A U.S. Citizen")
+
+ggplot(data = n2, aes(x = coninc)) +
+  geom_histogram()
+```
+```{r}
+#to view how increase in sample impacts the distribution for category "Not A U.S. Citizen"
+n2_sim <- n2 %>%
+  rep_sample_n(size = 250, reps = 500, replace = TRUE) %>%
+                    summarise(x_bar = mean(coninc))
+
+ggplot(data = n2_sim, aes(x = x_bar)) +
+  geom_histogram()
+
+summary(n2_sim)
+```
+Even for second category (Not a US citizen), we see that if we increase the sample by simulation then data becomes more normal.
+
+
+**Method to be used and why and how**
+
+The method we will be using is hypothesis testing. We would be using two-sided hypothesis testing since we want to to whether income of Non-US citizens is equal to US citizens.
+We see if we use simulation method then data becomes nearly normal. Therfore, while calculating inference, instead of using method = "theoretical" we will use method = "simulation". 
+
+Our response variable is numerical in nature: coninc (which is the total income)
+
+Explanatory variable is categorical variable with 2 levels (US citizen and not a US citizen)
+
+**Perform inference**
+
+```{r}
+inference(y = coninc, x = uscitzn, data = samp, statistic = "mean", type = "ht",  conf_level = 0.95, null = 0, 
+          alternative = "twosided", method = "simulation")
+```
+
+**Interpret results**
+
+The p_value =< .0001, so we can reject the null hypothesis (H0). This means that there is certainly difference between income of US and non-US citizens.
+
